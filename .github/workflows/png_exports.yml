@@ -11,31 +11,30 @@ jobs:
     runs-on: ubuntu-latest
     
     container:
-      image: eworkssk/ubuntu-inkscape:1.4
+      image: alpine/inkscape:1.3.2
       options: --user root
 
     steps:
       - name: Repository auschecken
         uses: actions/checkout@v4
 
-      # Dieser Schritt zum Installieren von Inkscape ist nicht mehr nötig,
-      # da es bereits im Container enthalten ist.
       - name: Inkscape Version prüfen
         run: inkscape --version
 
       - name: SVG-Dateien finden und exportieren
         id: find-and-export
+        shell: bash
         run: |
           mkdir -p exports
           export_count=0
           
-          if [[ "${{ github.event_name }}" == "push" ]]; then
+          if [ "${{ github.event_name }}" == "push" ]; then
             changed_files=$(git diff-tree --no-commit-id --name-only -r ${{ github.sha }} | grep '\.svg$')
           else
             changed_files=$(find . -type f -name "*.svg")
           fi
           
-          if [[ -z "$changed_files" ]]; then
+          if [ -z "$changed_files" ]; then
             echo "Keine SVG-Dateien für den Export gefunden."
             echo "export_count=0" >> "$GITHUB_ENV"
             exit 0
@@ -54,12 +53,17 @@ jobs:
                      -o "${output_file}" \
                      "${svg_file}" &> /dev/null
             
-            if [ -s "${output_file}" ] && [ $(stat -c%s "${output_file}") -gt 1024 ]; then
-              echo "Datei ${base_name}.png erfolgreich exportiert."
-              export_count=$((export_count + 1))
+            if [ -s "${output_file}" ]; then
+              file_size=$(stat -c%s "${output_file}")
+              if [ "$file_size" -gt 1024 ]; then
+                echo "Datei ${base_name}.png erfolgreich exportiert. (Größe: $file_size Bytes)"
+                export_count=$((export_count + 1))
+              else
+                echo "Export von ${base_name}.png fehlgeschlagen oder leere Datei erstellt (Größe: $file_size Bytes). Datei wurde gelöscht."
+                rm -f "${output_file}"
+              fi
             else
-              echo "Export von ${base_name}.png fehlgeschlagen. Datei wurde gelöscht."
-              rm -f "${output_file}"
+              echo "Export von ${base_name}.png fehlgeschlagen. Ausgabedatei existiert nicht."
             fi
           done
           
