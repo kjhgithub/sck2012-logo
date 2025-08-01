@@ -9,15 +9,19 @@ on:
 jobs:
   export-svg-pages:
     runs-on: ubuntu-latest
+    
+    container:
+      image: eworkssk/ubuntu-inkscape:1.4
+      options: --user root
 
     steps:
       - name: Repository auschecken
         uses: actions/checkout@v4
 
-      - name: Inkscape installieren
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y inkscape
+      # Dieser Schritt zum Installieren von Inkscape ist nicht mehr nötig,
+      # da es bereits im Container enthalten ist.
+      - name: Inkscape Version prüfen
+        run: inkscape --version
 
       - name: SVG-Dateien finden und exportieren
         id: find-and-export
