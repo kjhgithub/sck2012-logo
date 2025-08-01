@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - '**.svg'
+  workflow_dispatch:
 
 jobs:
   export-svg-pages:
