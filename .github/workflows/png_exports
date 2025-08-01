@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Schritt 1: Repository auschecken
+      # Schritt 1: Repo auschecken
       - name: Repository auschecken
         uses: actions/checkout@v4
 
