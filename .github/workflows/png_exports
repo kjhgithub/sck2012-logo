@@ -1,0 +1,67 @@
+name: SVG zu PNG exportieren
+
+on:
+  push:
+    paths:
+      - '**.svg'
+
+jobs:
+  export-svg-pages:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Schritt 1: Repository auschecken
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      # Schritt 2: Inkscape installieren
+      - name: Inkscape installieren
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y inkscape
+
+      # Schritt 3: SVG-Seiten exportieren
+      - name: SVG-Seiten exportieren
+        run: |
+          # Sicherstellen, dass der Basisordner existiert
+          mkdir -p exports
+          export_count=0
+
+          # Geänderte SVG-Dateien im letzten Commit finden
+          git diff-tree --no-commit-id --name-only -r HEAD | grep '\.svg$' | while read svg_file; do
+            if [ -f "$svg_file" ]; then
+              echo "Verarbeite geänderte Datei: ${svg_file}"
+
+              base_name=$(basename "${svg_file}" .svg)
+              output_dir="exports/${base_name}"
+              mkdir -p "${output_dir}"
+
+              # Alle Seiten automatisch exportieren, bis ein Fehler auftritt
+              page=1
+              while inkscape --export-type="png" \
+                             --export-dpi=300 \
+                             --export-background-opacity=0 \
+                             --export-area-page \
+                             -p "${page}" \
+                             -o "${output_dir}/page_${page}.png" \
+                             "${svg_file}" 2> /dev/null; do
+                echo "Seite ${page} exportiert."
+                export_count=$((export_count + 1))
+                page=$((page + 1))
+              done
+            else
+              echo "Datei ${svg_file} nicht gefunden – wird übersprungen."
+            fi
+          done
+
+          echo "Exportierte Seiten: $export_count"
+          echo "export_count=$export_count" >> "$GITHUB_ENV"
+
+      # Schritt 4: Nur committen, wenn PNGs vorhanden sind
+      - name: Änderungen committen und pushen
+        if: env.export_count != '0'
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "CI: Automatisch exportierte PNGs aus SVG-Dateien"
+          file_pattern: "exports/**/*.png"
+          repository: .
