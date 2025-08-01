@@ -40,32 +40,25 @@ jobs:
           for svg_file in $changed_files; do
             echo "Verarbeite Datei: ${svg_file}"
             base_name=$(basename "${svg_file}" .svg)
-            output_dir="exports/${base_name}"
-            mkdir -p "${output_dir}"
+            output_dir="exports"
+            output_file="${output_dir}/${base_name}.png"
 
-            for page in $(seq 1 100); do
-              output_file="${output_dir}/page_${page}.png"
-              
-              inkscape --export-type="png" \
-                       --export-dpi=300 \
-                       --export-background-opacity=0 \
-                       --export-area-page \
-                       -p "${page}" \
-                       -o "${output_file}" \
-                       "${svg_file}" &> /dev/null
-              
-              # Überprüfe, ob die exportierte Datei existiert und eine Mindestgröße hat
-              # 1 Kilobyte ist ein sicherer Wert, um leere oder fehlerhafte PNGs auszuschließen
-              if [ -s "${output_file}" ] && [ $(stat -c%s "${output_file}") -gt 1024 ]; then
-                echo "Seite ${page} exportiert."
-                export_count=$((export_count + 1))
-              else
-                echo "Keine weiteren Seiten für ${svg_file} gefunden oder Fehler beim Export von Seite ${page}."
-                rm -f "${output_file}" # Lösche die fehlerhafte Datei
-                break
-              fi
-            done
+            inkscape --export-type="png" \
+                     --export-dpi=300 \
+                     --export-background-opacity=0 \
+                     --export-area-page \
+                     -o "${output_file}" \
+                     "${svg_file}" &> /dev/null
+            
+            if [ -s "${output_file}" ] && [ $(stat -c%s "${output_file}") -gt 1024 ]; then
+              echo "Datei ${base_name}.png erfolgreich exportiert."
+              export_count=$((export_count + 1))
+            else
+              echo "Export von ${base_name}.png fehlgeschlagen. Datei wurde gelöscht."
+              rm -f "${output_file}"
+            fi
           done
+          
           echo "Gesamt exportierte Seiten: $export_count"
           echo "export_count=$export_count" >> "$GITHUB_ENV"
 
@@ -74,5 +67,5 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "CI: Automatisch exportierte PNGs aus SVG-Dateien"
-          file_pattern: "exports/**/*.png"
+          file_pattern: "exports/*.png"
           repository: .
